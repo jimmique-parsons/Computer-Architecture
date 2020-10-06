@@ -65,6 +65,25 @@ class CPU:
         else:
             raise Exception("Unsupported ALU operation")
 
+    def ram_read(self, address):
+        """
+        Should accept the address to read and return the value stored there
+        """
+        self.mar = address
+        self.mdr = self.ram[self.mar]
+
+        return self.mdr
+
+    def ram_write(self, address, value):
+        """
+        Should accept a value to write, and the address to write to
+        """
+        self.mar = address
+        self.mdr = value
+        
+
+        self.ram[self.mar] = self.mdr
+
     def trace(self):
         """
         Handy function to print out the CPU state. You might want to call this
