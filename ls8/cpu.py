@@ -1,3 +1,4 @@
+
 """CPU functionality."""
 
 import sys
@@ -6,6 +7,10 @@ import sys
 HLT = 0b00000001
 LDI = 0b10000010
 PRN = 0b01000111
+ADD = 0b10100000
+SUB = 0b10100001
+MUL = 0b10100010
+DIV = 0b10100011
 
 
 class CPU:
@@ -54,7 +59,6 @@ class CPU:
             # Open the file provided as the 2nd arg
             with open(sys.argv[1]) as file:
                 for line in file:
-
                     # Split the line into an array, with '#' as the delimiter
                     comment_split = line.split('#')
 
@@ -85,10 +89,14 @@ class CPU:
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
-
-        if op == "ADD":
+        if op == ADD:
             self.reg[reg_a] += self.reg[reg_b]
-        #elif op == "SUB": etc
+        elif op == SUB:
+            self.reg[reg_a] -= self.reg[reg_b]
+        elif op == MUL:
+            self.reg[reg_a] *= self.reg[reg_b]
+        elif op == DIV:
+            self.reg[reg_a] /= self.reg[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -101,12 +109,12 @@ class CPU:
 
         return self.mdr
 
-    def ram_write(self, value, address):
+    def ram_write(self, address, value):
         """
         Should accept a value to write, and the address to write to
         """
-        self.mdr = value
         self.mar = address
+        self.mdr = value
 
         self.ram[self.mar] = self.mdr
 
@@ -148,17 +156,23 @@ class CPU:
             operand_a = self.ram_read(self.pc + 1)
             operand_b = self.ram_read(self.pc + 2)
 
-            #Halt the CPU
+            # Check if it's an ALU instruction
+            is_alu_operation = (instruction >> 5) & 0b1
+
+            if is_alu_operation:
+               self.alu(self.ir, operand_a, operand_b)
+
+            # Halt the CPU
             if self.ir == HLT:
                 running = False
 
             # Set the value of a register to an integer
             if self.ir == LDI:
-                self.ram_write(operand_a, operand_b)
+                self.reg[operand_a] = operand_b
 
             # Print the decimal integer value stored in the given register
             if self.ir == PRN:
-                number = self.ram_read(operand_a)
+                number = self.reg[operand_a]
                 print(number)
 
             # Point the PC to the next instruction in memory
