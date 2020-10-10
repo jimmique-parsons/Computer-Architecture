@@ -12,7 +12,8 @@ MUL = 0b10100010
 DIV = 0b10100011
 PUSH = 0b01000101
 POP = 0b01000110
-
+CALL = 0b01010000
+RET = 0b00010001
 
 class CPU:
     """Main CPU class."""
@@ -52,6 +53,9 @@ class CPU:
         # Flags Register - holds the current flags status
         self.fl = None
 
+        # Loop in cpu_run() will run while this is True
+        self.running = True
+
         # Set up a branch table
         self.branchtable = {}
         self.branchtable[HLT] = self.handle_hlt
@@ -59,6 +63,8 @@ class CPU:
         self.branchtable[PRN] = self.handle_prn
         self.branchtable[PUSH] = self.handle_push
         self.branchtable[POP] = self.handle_pop
+        self.branchtable[CALL] = self.handle_call
+        self.branchtable[RET] = self.handle_ret
 
     def load(self):
         """Load a program into memory."""
@@ -160,6 +166,7 @@ class CPU:
         print()
 
     def handle_hlt(self):
+        self.running = False
         sys.exit()
 
     def handle_ldi(self):
@@ -198,15 +205,41 @@ class CPU:
         # Copy the value to the address pointed to by the SP
         self.ram_write(self.reg[7], value)
 
-    def run(self):
-        """Run the CPU."""
-        running = True
+    def handle_call(self):
+        # Get the address of the instruction directly after CALL
+        return_address = self.pc + 2
+
+        # Push it onto the stack
+        ## Decrement the Stack Pointer
+        self.reg[7] -= 1
+
+        ## Store the return address at the top of the stack
+        self.ram_write(self.reg[7], return_address)
+
+        # Get the register to fetch from
+        register_num = self.ram_read(self.pc + 1)
+
+        # Grab the address stored in that register
+        address = self.reg[register_num]
+
+        # Set the PC to that address
+        self.pc = address
+
+    def handle_ret(self):
+        # Pop the address at the top of the stack
+
+        ## Get the address pointed to by the Stack Pointer
+        address = self.ram_read(self.reg[7])
+
+        ## Increment the Stack Pointer
+        self.reg[7] += 1
+
+        ## Point to PC to that address
+        self.pc = address
 
     def run(self):
         """Run the CPU."""
-        running = True
-
-        while running:
+        while self.running:
             # Get the current instruction
             instruction = self.ram_read(self.pc)
 
@@ -228,5 +261,9 @@ class CPU:
             else:
                 self.branchtable[self.ir]()
 
-            # Point the PC to the next instruction in memory
-            self.pc += num_operands + 1
+            # Check if this instruction  sets the PC directly
+            sets_pc = (instruction >> 4) & 0b0001
+
+            if not sets_pc:
+                # Point the PC to the next instruction in memory
+                self.pc += num_operands + 1
